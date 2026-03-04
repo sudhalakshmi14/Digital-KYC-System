@@ -76,3 +76,7 @@ npm start
 ## License
 
 This project is developed for educational and hackathon purposes.
+
+Node.js Backend → running on http://localhost:5000
+
+Python AI Service → running on http://localhost:8000
