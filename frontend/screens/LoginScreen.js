@@ -1,140 +1,396 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions
+View,
+Text,
+StyleSheet,
+TextInput,
+TouchableOpacity,
+Alert,
+Switch
 } from "react-native";
+
 import { LinearGradient } from "expo-linear-gradient";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import * as LocalAuthentication from "expo-local-authentication";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const { width } = Dimensions.get("window");
+import { APP_GRADIENT } from "../constants/Colors";
 
-export default function WelcomeScreen({ navigation }) {
+export default function LoginScreen({ navigation }) {
 
-  return (
-    <LinearGradient
-      colors={["#0F1C5C", "#273B9A", "#7C2AE8"]}
-      style={styles.container}
-    >
-
-      {/* Top Section */}
-      <View style={styles.topContainer}>
-        <View style={styles.iconWrapper}>
-          <MaterialCommunityIcons
-            name="shield-check"
-            size={60}
-            color="white"
-          />
-        </View>
-
-        <Text style={styles.title}>SecureAI KYC</Text>
-
-        <Text style={styles.subtitle}>
-          Secure Digital Identity Verification{"\n"}
-          for Safe Banking Onboarding
-        </Text>
-      </View>
+const [email,setEmail] = useState("");
+const [password,setPassword] = useState("");
+const [remember,setRemember] = useState(false);
 
 
-      {/* Bottom Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Welcome Back</Text>
+// Load remembered email
+useEffect(() => {
 
-        <Text style={styles.cardText}>
-          Secure Digital Identity Verification for Safe Banking Onboarding
-        </Text>
+async function loadEmail(){
 
-        {/* Get Started Button */}
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Login")}
-        >
-          <LinearGradient
-            colors={["#3B82F6", "#D946EF"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.button}
-          >
-            <Text style={styles.buttonText}>Get Started</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+const savedEmail = await AsyncStorage.getItem("rememberEmail");
 
-      </View>
-
-    </LinearGradient>
-  );
+if(savedEmail){
+setEmail(savedEmail);
+setRemember(true);
 }
+
+}
+
+loadEmail();
+
+}, []);
+
+
+// LOGIN
+async function handleLogin(){
+
+if(email === "" || password === ""){
+Alert.alert("Error","Please enter email and password");
+return;
+}
+
+// Save email if remember enabled
+if(remember){
+await AsyncStorage.setItem("rememberEmail",email);
+}else{
+await AsyncStorage.removeItem("rememberEmail");
+}
+
+let role = email === "admin@gmail.com" ? "Admin" : "User";
+
+navigation.navigate("Dashboard",{ role });
+
+}
+
+
+// REMEMBER TOGGLE
+function toggleRemember(){
+setRemember(!remember);
+}
+
+
+// FORGOT PASSWORD
+function forgotPassword(){
+
+if(email.trim() === ""){
+Alert.alert(
+"Email Required",
+"Please enter your email address first."
+);
+return;
+}
+
+Alert.alert(
+"Password Reset",
+`A password reset link has been sent to:\n\n${email}`
+);
+
+}
+
+
+// REQUEST OTP
+function requestOTP(){
+
+if(email === ""){
+Alert.alert("Enter Email","Please enter your email first");
+return;
+}
+
+Alert.alert("OTP Sent","Verification OTP sent to your email");
+
+navigation.navigate("OTP");
+
+}
+
+
+// BIOMETRIC LOGIN
+async function biometricLogin(){
+
+const compatible = await LocalAuthentication.hasHardwareAsync();
+
+if(!compatible){
+Alert.alert("Error","Biometric authentication not supported");
+return;
+}
+
+const result = await LocalAuthentication.authenticateAsync({
+promptMessage:"Login with Biometrics"
+});
+
+if(result.success){
+
+Alert.alert("Success","Biometric Authentication Successful");
+
+navigation.navigate("Dashboard",{ role:"User" });
+
+}
+
+}
+
+
+return(
+
+<LinearGradient colors={APP_GRADIENT} style={styles.container}>
+
+<View style={styles.iconBox}>
+<Ionicons name="shield-outline" size={35} color="#fff"/>
+</View>
+
+<Text style={styles.title}>Welcome Back</Text>
+<Text style={styles.subtitle}>Sign in to your KYC Dashboard</Text>
+
+<View style={styles.card}>
+
+{/* EMAIL */}
+
+<Text style={styles.label}>Email Address</Text>
+
+<View style={styles.inputBox}>
+<Ionicons name="mail-outline" size={20} color="#ccc"/>
+<TextInput
+style={styles.input}
+placeholder="demo@kyc.com"
+placeholderTextColor="#ccc"
+value={email}
+onChangeText={setEmail}
+/>
+</View>
+
+
+{/* PASSWORD */}
+
+<Text style={styles.label}>Password</Text>
+
+<View style={styles.inputBox}>
+<Ionicons name="lock-closed-outline" size={20} color="#ccc"/>
+<TextInput
+style={styles.input}
+placeholder="Enter your password"
+placeholderTextColor="#ccc"
+secureTextEntry
+value={password}
+onChangeText={setPassword}
+/>
+</View>
+
+
+{/* REMEMBER + FORGOT */}
+
+<View style={styles.row}>
+
+<View style={{flexDirection:"row",alignItems:"center"}}>
+<Switch value={remember} onValueChange={toggleRemember}/>
+<Text style={styles.remember}>Remember me</Text>
+</View>
+
+<TouchableOpacity onPress={forgotPassword}>
+<Text style={styles.forgot}>Forgot Password?</Text>
+</TouchableOpacity>
+
+</View>
+
+
+{/* SIGN IN */}
+
+<TouchableOpacity style={styles.button} onPress={handleLogin}>
+
+<LinearGradient
+colors={["#4facfe","#8e2de2"]}
+style={styles.gradientBtn}
+>
+<Text style={styles.buttonText}>Sign In</Text>
+</LinearGradient>
+
+</TouchableOpacity>
+
+
+{/* OTP */}
+
+<TouchableOpacity style={styles.otpBtn} onPress={requestOTP}>
+<Text style={styles.otpText}>Request OTP</Text>
+</TouchableOpacity>
+
+
+<View style={styles.dividerRow}>
+<View style={styles.divider}/>
+<Text style={styles.dividerText}>Or continue with</Text>
+<View style={styles.divider}/>
+</View>
+
+
+{/* BIOMETRIC */}
+
+<TouchableOpacity style={styles.bioBtn} onPress={biometricLogin}>
+<Ionicons name="finger-print" size={20} color="#fff"/>
+<Text style={styles.bioText}> Biometric Login</Text>
+</TouchableOpacity>
+
+
+{/* SIGNUP */}
+
+<View style={styles.signupContainer}>
+<Text style={styles.signupText}>
+Don't have an account?
+<Text
+style={styles.signupLink}
+onPress={()=>navigation.navigate("CreateAccountStep1")}
+>
+{" "}Sign Up
+</Text>
+</Text>
+</View>
+
+</View>
+
+</LinearGradient>
+
+)
+
+}
+
 
 const styles = StyleSheet.create({
 
-  container: {
-    flex: 1,
-    justifyContent: "space-between",
-    paddingTop: 120,
-    paddingBottom: 60,
-    paddingHorizontal: 25
-  },
+container:{
+flex:1,
+justifyContent:"center",
+alignItems:"center",
+padding:20
+},
 
-  topContainer: {
-    alignItems: "center"
-  },
+iconBox:{
+backgroundColor:"rgba(255,255,255,0.12)",
+padding:20,
+borderRadius:20,
+marginBottom:10
+},
 
-  iconWrapper: {
-    backgroundColor: "rgba(255,255,255,0.15)",
-    padding: 20,
-    borderRadius: 30,
-    marginBottom: 20
-  },
+title:{
+fontSize:28,
+fontWeight:"bold",
+color:"#fff"
+},
 
-  title: {
-    fontSize: 34,
-    fontWeight: "bold",
-    color: "white",
-    marginBottom: 10
-  },
+subtitle:{
+color:"#ccc",
+marginBottom:20
+},
 
-  subtitle: {
-    fontSize: 16,
-    color: "#E0E7FF",
-    textAlign: "center",
-    lineHeight: 24
-  },
+card:{
+width:"100%",
+backgroundColor:"rgba(255,255,255,0.1)",
+padding:20,
+borderRadius:20,
+borderWidth:1,
+borderColor:"rgba(255,255,255,0.2)"
+},
 
-  card: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 25,
-    padding: 30,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)"
-  },
+label:{
+color:"#fff",
+marginBottom:5
+},
 
-  cardTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "white",
-    marginBottom: 10
-  },
+inputBox:{
+flexDirection:"row",
+alignItems:"center",
+backgroundColor:"rgba(255,255,255,0.1)",
+padding:12,
+borderRadius:10,
+marginBottom:12
+},
 
-  cardText: {
-    color: "#E5E7EB",
-    textAlign: "center",
-    marginBottom: 25,
-    lineHeight: 20
-  },
+input:{
+flex:1,
+marginLeft:10,
+color:"#fff"
+},
 
-  button: {
-    width: width * 0.6,
-    paddingVertical: 15,
-    borderRadius: 20,
-    alignItems: "center"
-  },
+row:{
+flexDirection:"row",
+justifyContent:"space-between",
+alignItems:"center",
+marginBottom:12
+},
 
-  buttonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold"
-  }
+remember:{
+color:"#ccc"
+},
+
+forgot:{
+color:"#4facfe"
+},
+
+button:{
+borderRadius:10,
+overflow:"hidden",
+marginTop:5
+},
+
+gradientBtn:{
+padding:15,
+alignItems:"center"
+},
+
+buttonText:{
+color:"#fff",
+fontWeight:"bold",
+fontSize:16
+},
+
+otpBtn:{
+marginTop:12,
+borderWidth:1,
+borderColor:"rgba(255,255,255,0.4)",
+padding:14,
+borderRadius:10,
+alignItems:"center"
+},
+
+otpText:{
+color:"#fff"
+},
+
+dividerRow:{
+flexDirection:"row",
+alignItems:"center",
+marginVertical:15
+},
+
+divider:{
+flex:1,
+height:1,
+backgroundColor:"rgba(255,255,255,0.3)"
+},
+
+dividerText:{
+marginHorizontal:10,
+color:"#ccc"
+},
+
+bioBtn:{
+flexDirection:"row",
+justifyContent:"center",
+alignItems:"center"
+},
+
+bioText:{
+color:"#fff"
+},
+
+signupContainer:{
+alignItems:"center",
+marginTop:15
+},
+
+signupText:{
+color:"#ccc",
+textAlign:"center"
+},
+
+signupLink:{
+color:"#4facfe",
+fontWeight:"600"
+}
 
 });
